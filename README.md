@@ -1,25 +1,14 @@
-# Game Boilerplate
+# Nutria Wars
 
-If you want to create a browser game with Coffeescript based on the Canvas element, you will likely need some classes like that provide a game loop, Sprites, Animation and so on.
+A demo game developed using coffee script and the instant rocket fuel engine.
+irfframework.orbs.com/
+The development started in an workshop at the eeg. 
+http://www.eexistence.de/news/workshop-session-online-gamesentwicklung
+But it is still work in Progress.
 
-Here you will find this basic boilerplate code:
+* Try to decimate these nasty rodents. They really try to rule the world!
+* Use arrow keys to rotate
+* Hit space to shoot
+* Stay alive
+* No animals were harmed in the making of Nutria Wars 
 
-* Game
-
-  To create a game, just inherit from Game and overwrite the *update* and *render* functions.
-  Update and render will run in a timebased loop.
-  
-* Statemanager
-
-  You can choose to add more than one State to your game. 
-  Just put them in separate classes and add them to the Statemanager.
-  
-* Sprite
-
-  Add Sprites to the Objects in your game and render them to the canvas.
-  A Sprite can be instantiated with a Texture. Then you can add Shapes (Static Images) and Animations to it.
-
-* Vector
-
-  to control the movement of the objects in your game, just supply them with a Vector for speed and location.
-  There are functions to add, subtract and do all kinds of operations.
