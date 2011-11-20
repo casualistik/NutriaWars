@@ -1,7 +1,7 @@
 
 
 class CustomBackground
-  constructor:(@image, @myWidth=640, @myHeight=480)  ->
+  constructor:(@image, @myWidth=640, @myHeight=480) ->
     @state = "normal"
     console.log("CustomBackground  #{this} #{@image} #{@myWidth} #{@myHeight} " )
     @sprite = new Sprite
@@ -12,7 +12,7 @@ class CustomBackground
         "normal": 0
 
     @coor = new Vector( @myWidth/2, @myHeight/2 )
-  
+
   update: (delta) ->
     
 

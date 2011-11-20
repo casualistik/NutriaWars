@@ -1,7 +1,7 @@
 
 
 class Hero
-  constructor: (@eventmanager, @keyboard) ->
+  constructor: (@eventmanager, @keyboard, @bullets) ->
     
     @state = "normal"
     @sprite = new Sprite
@@ -11,45 +11,41 @@ class Hero
       "key":
         "normal": 3
         "jumping": 5
-
+    
     @coor = new Vector( 0, 0 )
-    @speed = new Vector( 0, 0 )
-    @omega = 0.001
-    @gravity = 0.01
+    @angleSpeed = 0.2
     @angle = 0
     
-    
-    # event Manager
-   # @eventmanager.register "touchdown", @touchdown
-  
-  shoot: ->
-    console.log   "shoot"
-  
+    @attackTime = 1*1000
+    @attackDelay = 0
 
-  touchdown: ->
-    console.log "Hero says: Touchdown occurred"
-  
+  shootBullet: ->
+    @attackDelay = @attackTime
+    aimDirection = new Vector(Math.cos(@angle * Math.PI / 180), Math.sin(@angle * Math.PI / 180));
+    for bullet in @bullets
+     if !bullet.isAlive
+       bullet.shoot(@coor, aimDirection)
+       break
+
   update: (delta) ->
-    
+    # Delay to prevent hold on fire
+    if @attackDelay > 0
+      @attackDelay -= delta
+    # shoot
+    if @keyboard.key("space") and @attackDelay <= 0
+      @shootBullet()
     # left/right movement
     if @keyboard.key("right")
-      @angle += @omega
+      @angle = (@angle-delta*@angleSpeed)%360
       console.log "#{this} Right Angle:#{@angle}"
     else if @keyboard.key("left")
-      @angle -= @omega 
+      @angle = (@angle+delta*@angleSpeed)%360
       console.log "#{this} LEFT Angle:#{@angle}"
-   
-    # jump
-    #if @keyboard.key("space") and @state isnt "jumping"
-     # @state = "jumping"
-      #@speed.y = -0.5
-      
-    @coor = @coor.add( @speed.mult delta )
 
   render: (ctx) ->
     ctx.save()
     ctx.translate @coor.x, @coor.y
-    ctx.rotate @angle * (180/Math.PI)
+    ctx.rotate @angle * Math.PI / 180
     @sprite.render( @state, ctx )
     ctx.restore()
 

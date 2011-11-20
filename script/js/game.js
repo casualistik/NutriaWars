@@ -1,5 +1,5 @@
 (function() {
-  var Animation, Background, Bullet, Camera, CustomBackground, Eventmanager, Game, Hero, Keyboard, Map, Nutria, NutriaWars, Shape, Sprite, State, StateMenu, StatePlay, Statemanager, Tile, Timer, Vector, root, stateclass;
+  var Animation, Background, Bullet, Camera, CustomBackground, Enemy, Eventmanager, Game, Hero, Keyboard, Map, NutriaWars, Shape, Sprite, State, StateGameOver, StateMenu, StatePlay, Statemanager, Tile, Timer, Vector, root, stateclass;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
 
   root = this;
@@ -536,9 +536,13 @@
 
     function State() {}
 
+    State.prototype.create = function() {};
+
     State.prototype.update = function() {};
 
     State.prototype.draw = function() {};
+
+    State.prototype.destroy = function() {};
 
     return State;
 
@@ -643,7 +647,7 @@
     function StateMenu(parent) {
       var i;
       this.parent = parent;
-      console.log("Init Menu State");
+      console.log("contruct state_menu");
       console.log("width: " + this.parent.width + " -- height: " + this.parent.height);
       this.camera = new Camera({
         "projection": "normal",
@@ -651,38 +655,45 @@
         "vpHeight": this.parent.height
       });
       this.camera.coor = new Vector(0, 0);
-      this.nutrias = [];
+      this.enemies = [];
       for (i = 0; i <= 10; i++) {
-        this.nutrias[i] = new Nutria;
-        this.nutrias[i].isAlive = true;
+        this.enemies[i] = new Enemy;
+        this.enemies[i].revive();
       }
       this.background = new CustomBackground("assets/images/bg-menu.png", this.parent.width, this.parent.height);
     }
 
     StateMenu.prototype.update = function(delta) {
-      var nutria, _i, _len, _ref;
-      _ref = this.nutrias;
+      var enemy, _i, _len, _ref;
+      _ref = this.enemies;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        nutria = _ref[_i];
-        nutria.update(delta);
+        enemy = _ref[_i];
+        enemy.update(delta);
       }
-      if (this.parent.keyboard.key("space")) {
-        console.log("Space pressed");
-        return this.parent.stateManager.setState("state_play");
-      }
+      if (this.parent.keyboard.key("space")) return this.destroy("state_play");
     };
 
     StateMenu.prototype.render = function(ctx) {
       var _this = this;
       return this.camera.apply(ctx, function() {
-        var nutria, _i, _len, _ref;
-        _ref = _this.nutrias;
+        var enemy, _i, _len, _ref;
+        _ref = _this.enemies;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          nutria = _ref[_i];
-          nutria.render(ctx);
+          enemy = _ref[_i];
+          enemy.render(ctx);
         }
         return _this.background.render(ctx);
       });
+    };
+
+    StateMenu.prototype.destroy = function(nextState) {
+      var enemy, _i, _len, _ref;
+      _ref = this.enemies;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        enemy = _ref[_i];
+        enemy.kill();
+      }
+      return this.parent.stateManager.setState(nextState);
     };
 
     return StateMenu;
@@ -694,39 +705,40 @@
     __extends(StatePlay, State);
 
     function StatePlay(parent) {
-      var i;
+      var i, _ref;
       this.parent = parent;
       console.log("Construct play state");
+      this.spawnEnemyTime = 3 * 1000;
+      this.spawnEnemyDelay = this.spawnEnemyTime;
+      this.maxEnemies = 10;
       this.camera = new Camera({
         "projection": "normal",
         "vpWidth": this.parent.width,
         "vpHeight": this.parent.height
       });
-      this.hero = new Hero(this.parent.eventmanager, this.parent.keyboard);
-      this.hero.coor = new Vector(this.parent.width / 2, this.parent.height / 2);
+      this.enemies = [];
+      for (i = 0, _ref = this.maxEnemies; 0 <= _ref ? i <= _ref : i >= _ref; 0 <= _ref ? i++ : i--) {
+        this.enemies[i] = new Enemy;
+        this.enemies[i].isAlive = false;
+        this.enemies[i].state = "attack";
+      }
       this.bullets = [];
       for (i = 0; i <= 20; i++) {
         this.bullets[i] = new Bullet;
       }
-      this.nutrias = [];
-      for (i = 0; i <= 10; i++) {
-        this.nutrias[i] = new Nutria;
-        this.nutrias[i].isAlive = false;
-        this.nutrias[i].state = "attack";
-      }
-      this.creatNutriaTime = 5 * 1000;
-      this.creatNutriaDelay = this.creatNutriaTime;
+      this.hero = new Hero(this.parent.eventmanager, this.parent.keyboard, this.bullets);
+      this.hero.coor = new Vector(this.parent.width / 2, this.parent.height / 2);
     }
 
-    StatePlay.prototype.createNutria = function() {
-      var nutria, _i, _len, _ref, _results;
-      console.log("Playstate createNutria");
-      _ref = this.nutrias;
+    StatePlay.prototype.spawnEnemy = function() {
+      var enemy, _i, _len, _ref, _results;
+      console.log("StatePlay: createEnemy()");
+      _ref = this.enemies;
       _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        nutria = _ref[_i];
-        if (!nutria.isAlive) {
-          nutria.attack(this.hero.coor);
+        enemy = _ref[_i];
+        if (!enemy.isAlive) {
+          enemy.attack(this.hero.coor);
           break;
         } else {
           _results.push(void 0);
@@ -736,34 +748,45 @@
     };
 
     StatePlay.prototype.update = function(delta) {
-      var bullet, dist, nutria, _i, _j, _k, _len, _len2, _len3, _ref, _ref2, _ref3, _results;
-      this.creatNutriaDelay -= delta;
-      if (this.creatNutriaDelay <= 0) {
-        this.createNutria();
-        this.creatNutriaDelay = this.creatNutriaTime;
+      var bullet, dist, enemy, _i, _j, _len, _len2, _ref, _ref2, _results;
+      this.spawnEnemyDelay -= delta;
+      if (this.spawnEnemyDelay <= 0) {
+        this.spawnEnemy();
+        this.spawnEnemyDelay = this.spawnEnemyTime;
       }
       this.hero.update(delta);
-      _ref = this.bullets;
+      _ref = this.enemies;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        bullet = _ref[_i];
-        bullet.update(delta);
+        enemy = _ref[_i];
+        enemy.update(delta);
+        dist = this.hero.coor.subtract(enemy.coor).length();
+        if (dist < 50 && enemy.isAlive) {
+          console.log("StatePlay: GAME OVER");
+          this.destroy("state_game_over");
+        }
       }
-      _ref2 = this.nutrias;
+      _ref2 = this.bullets;
       _results = [];
       for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
-        nutria = _ref2[_j];
-        dist = this.hero.coor.subtract(nutria.coor).length();
-        if (dist < 50) {
-          console.log("GAME OVER");
-          _ref3 = this.nutrias;
+        bullet = _ref2[_j];
+        bullet.update(delta);
+        _results.push((function() {
+          var _k, _len3, _ref3, _results2;
+          _ref3 = this.enemies;
+          _results2 = [];
           for (_k = 0, _len3 = _ref3.length; _k < _len3; _k++) {
-            nutria = _ref3[_k];
-            nutria.isAlive = false;
-            nutria.coor = new Vector(0, 0);
+            enemy = _ref3[_k];
+            dist = bullet.coor.subtract(enemy.coor).length();
+            if (dist < 10 && enemy.isAlive) {
+              console.log("StatePlay: bullet hits enemy");
+              bullet.kill();
+              _results2.push(enemy.kill());
+            } else {
+              _results2.push(void 0);
+            }
           }
-          this.parent.stateManager.setState("state_game_over");
-        }
-        _results.push(nutria.update(delta));
+          return _results2;
+        }).call(this));
       }
       return _results;
     };
@@ -771,35 +794,50 @@
     StatePlay.prototype.render = function(ctx) {
       var _this = this;
       return this.camera.apply(ctx, function() {
-        var bullet, nutria, _i, _j, _len, _len2, _ref, _ref2;
+        var bullet, enemy, _i, _j, _len, _len2, _ref, _ref2;
         _this.hero.render(ctx);
         _ref = _this.bullets;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           bullet = _ref[_i];
           bullet.render(ctx);
         }
-        _ref2 = _this.nutrias;
+        _ref2 = _this.enemies;
         for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
-          nutria = _ref2[_j];
-          nutria.render(ctx);
+          enemy = _ref2[_j];
+          enemy.render(ctx);
         }
         ctx.fillStyle = '#00ff00';
         return ctx.fillText('Use arrows to rotate and space to shoot', 20, 460);
       });
     };
 
+    StatePlay.prototype.destroy = function(nextState) {
+      var bullet, enemy, _i, _j, _len, _len2, _ref, _ref2;
+      _ref = this.enemies;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        enemy = _ref[_i];
+        enemy.kill();
+      }
+      _ref2 = this.bullets;
+      for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
+        bullet = _ref2[_j];
+        bullet.kill();
+      }
+      return this.parent.stateManager.setState(nextState);
+    };
+
     return StatePlay;
 
   })();
 
-  stateclass["state_game_over"] = StateMenu = (function() {
+  stateclass["state_game_over"] = StateGameOver = (function() {
 
-    __extends(StateMenu, State);
+    __extends(StateGameOver, State);
 
-    function StateMenu(parent) {
+    function StateGameOver(parent) {
       var i;
       this.parent = parent;
-      console.log("Init Menu State");
+      console.log("Construct StateGameOver");
       console.log("width: " + this.parent.width + " -- height: " + this.parent.height);
       this.camera = new Camera({
         "projection": "normal",
@@ -807,51 +845,58 @@
         "vpHeight": this.parent.height
       });
       this.camera.coor = new Vector(0, 0);
-      this.nutrias = [];
+      this.enemies = [];
       for (i = 0; i <= 10; i++) {
-        this.nutrias[i] = new Nutria;
-        this.nutrias[i].isAlive = true;
+        this.enemies[i] = new Enemy;
+        this.enemies[i].isAlive = true;
       }
       this.background = new CustomBackground("assets/images/game-over.png", this.parent.width, this.parent.height);
     }
 
-    StateMenu.prototype.update = function(delta) {
-      var nutria, _i, _len, _ref;
-      _ref = this.nutrias;
+    StateGameOver.prototype.update = function(delta) {
+      var enemy, _i, _len, _ref;
+      _ref = this.enemies;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        nutria = _ref[_i];
-        nutria.update(delta);
+        enemy = _ref[_i];
+        enemy.update(delta);
       }
-      if (this.parent.keyboard.key("space")) {
-        console.log("Space pressed");
-        return this.parent.stateManager.setState("state_play");
-      }
+      if (this.parent.keyboard.key("space")) return this.destroy("state_play");
     };
 
-    StateMenu.prototype.render = function(ctx) {
+    StateGameOver.prototype.render = function(ctx) {
       var _this = this;
       return this.camera.apply(ctx, function() {
-        var nutria, _i, _len, _ref;
-        _ref = _this.nutrias;
+        var enemy, _i, _len, _ref;
+        _ref = _this.enemies;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          nutria = _ref[_i];
-          nutria.render(ctx);
+          enemy = _ref[_i];
+          enemy.render(ctx);
         }
         return _this.background.render(ctx);
       });
     };
 
-    return StateMenu;
+    StateGameOver.prototype.destroy = function(nextState) {
+      var enemy, _i, _len, _ref;
+      _ref = this.enemies;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        enemy = _ref[_i];
+        enemy.kill();
+      }
+      return this.parent.stateManager.setState(nextState);
+    };
+
+    return StateGameOver;
 
   })();
 
-  Nutria = (function() {
+  Enemy = (function() {
 
-    function Nutria(eventmanager, keyboard) {
+    function Enemy(eventmanager, keyboard) {
       this.eventmanager = eventmanager;
       this.keyboard = keyboard;
       this.state = "normal";
-      this.isAlive = true;
+      this.isAlive = false;
       this.sprite = new Sprite({
         "texture": "assets/images/test.png",
         "width": 50,
@@ -859,25 +904,31 @@
       });
       this.sprite.addImage("normal", Math.floor(Math.random() * 10));
       this.sprite.addAnimation("normal", {
+        frames: [0],
+        fps: 3,
+        loop: true,
+        callback: this.hello
+      });
+      this.sprite.addAnimation("attack", {
         frames: [0, 1, 2, 3, 4].shuffle(),
         fps: 3,
         loop: true,
         callback: this.hello
       });
       this.coor = new Vector(Math.random() * 640, Math.random() * 480);
-      this.speed = new Vector(0.1, 0.1);
-      if (Math.random() > 0.5) this.speed = this.speed.mult(-1);
-      this.direction = new Vector(0, 0);
+      this.direction = new Vector(1, 1);
+      if (Math.random() > 0.5) this.direction = this.direction.mult(-1);
+      this.speed = 0.1;
     }
 
-    Nutria.prototype.attack = function(toCoor) {
+    Enemy.prototype.attack = function(targetCoor) {
       var rnd;
-      this.toCoor = toCoor;
-      console.log("Nutria  reset() toCoor " + this.toCoor);
-      this.isAlive = true;
-      this.state = "normal";
+      this.targetCoor = targetCoor;
+      console.log("Enemy  attack() targetCoor " + this.targetCoor);
+      this.state = "attack";
+      this.revive();
       rnd = Math.random();
-      if (rnd >= 0 && rnd <= 0.2) {
+      if (rnd <= 0.2) {
         this.coor.x = 0 - 200;
         this.coor.y = Math.random() * 480;
       } else if (rnd >= 0.3 && rnd <= 0.5) {
@@ -890,57 +941,70 @@
         this.coor.x = Math.random() * 640;
         this.coor.y = 480 + 200;
       }
-      return console.log("Nutria  reset() coor " + this.coor.x + " " + this.coor.y);
+      console.log("Nutria  attack() random coor " + this.coor.x + " " + this.coor.y);
+      this.direction = targetCoor.subtract(this.coor).norm();
+      return console.log("Nutria  attack() new direction " + this.direction.x + " " + this.direction.y);
     };
 
-    Nutria.prototype.update = function(delta) {
+    Enemy.prototype.update = function(delta) {
+      var newDist;
       if (this.isAlive) {
+        newDist = delta * this.speed;
+        this.coor = this.coor.add(this.direction.mult(newDist));
         switch (this.state) {
           case "normal":
-            this.coor = this.coor.add(this.speed.mult(delta));
             if (this.coor.x > 640) {
-              this.speed.x = this.speed.x * -1;
+              this.direction.x = this.direction.x * -1;
               this.coor.x = 640;
             }
             if (this.coor.x < 0) {
-              this.speed.x = this.speed.x * -1;
+              this.direction.x = this.direction.x * -1;
               this.coor.x = 0;
             }
             if (this.coor.y > 480) {
-              this.speed.y = this.speed.y * -1;
+              this.direction.y = this.direction.y * -1;
               this.coor.y = 480;
             }
             if (this.coor.y < 0) {
-              this.speed.y = this.speed.y * -1;
+              this.direction.y = this.direction.y * -1;
               return this.coor.y = 0;
             }
-            break;
-          case "attack":
-            return this.coor = this.coor.add(this.speed.mult(delta));
         }
       }
     };
 
-    Nutria.prototype.render = function(ctx) {
-      ctx.save();
-      ctx.translate(this.coor.x, this.coor.y);
-      this.sprite.render(this.state, ctx);
-      return ctx.restore();
+    Enemy.prototype.render = function(ctx) {
+      if (this.isAlive) {
+        ctx.save();
+        ctx.translate(this.coor.x, this.coor.y);
+        this.sprite.render(this.state, ctx);
+        return ctx.restore();
+      }
     };
 
-    Nutria.prototype.hello = function() {
+    Enemy.prototype.hello = function() {
       return console.log("hello!");
     };
 
-    return Nutria;
+    Enemy.prototype.revive = function() {
+      return this.isAlive = true;
+    };
+
+    Enemy.prototype.kill = function() {
+      console.log("kill");
+      return this.isAlive = false;
+    };
+
+    return Enemy;
 
   })();
 
   Hero = (function() {
 
-    function Hero(eventmanager, keyboard) {
+    function Hero(eventmanager, keyboard, bullets) {
       this.eventmanager = eventmanager;
       this.keyboard = keyboard;
+      this.bullets = bullets;
       this.state = "normal";
       this.sprite = new Sprite({
         "texture": "assets/images/hero.png",
@@ -952,35 +1016,46 @@
         }
       });
       this.coor = new Vector(0, 0);
-      this.speed = new Vector(0, 0);
-      this.omega = 0.001;
-      this.gravity = 0.01;
+      this.angleSpeed = 0.2;
       this.angle = 0;
+      this.attackTime = 1 * 1000;
+      this.attackDelay = 0;
     }
 
-    Hero.prototype.shoot = function() {
-      return console.log("shoot");
-    };
-
-    Hero.prototype.touchdown = function() {
-      return console.log("Hero says: Touchdown occurred");
+    Hero.prototype.shootBullet = function() {
+      var aimDirection, bullet, _i, _len, _ref, _results;
+      this.attackDelay = this.attackTime;
+      aimDirection = new Vector(Math.cos(this.angle * Math.PI / 180), Math.sin(this.angle * Math.PI / 180));
+      _ref = this.bullets;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        bullet = _ref[_i];
+        if (!bullet.isAlive) {
+          bullet.shoot(this.coor, aimDirection);
+          break;
+        } else {
+          _results.push(void 0);
+        }
+      }
+      return _results;
     };
 
     Hero.prototype.update = function(delta) {
+      if (this.attackDelay > 0) this.attackDelay -= delta;
+      if (this.keyboard.key("space") && this.attackDelay <= 0) this.shootBullet();
       if (this.keyboard.key("right")) {
-        this.angle += this.omega;
-        console.log("" + this + " Right Angle:" + this.angle);
+        this.angle = (this.angle - delta * this.angleSpeed) % 360;
+        return console.log("" + this + " Right Angle:" + this.angle);
       } else if (this.keyboard.key("left")) {
-        this.angle -= this.omega;
-        console.log("" + this + " LEFT Angle:" + this.angle);
+        this.angle = (this.angle + delta * this.angleSpeed) % 360;
+        return console.log("" + this + " LEFT Angle:" + this.angle);
       }
-      return this.coor = this.coor.add(this.speed.mult(delta));
     };
 
     Hero.prototype.render = function(ctx) {
       ctx.save();
       ctx.translate(this.coor.x, this.coor.y);
-      ctx.rotate(this.angle * (180 / Math.PI));
+      ctx.rotate(this.angle * Math.PI / 180);
       this.sprite.render(this.state, ctx);
       return ctx.restore();
     };
@@ -1023,48 +1098,56 @@
 
   Bullet = (function() {
 
-    function Bullet(eventmanager, keyboard) {
-      this.eventmanager = eventmanager;
-      this.keyboard = keyboard;
+    function Bullet() {
       this.state = "normal";
       this.sprite = new Sprite({
         "texture": "assets/images/bullet.png",
-        "width": 3,
-        "height": 3,
+        "width": 25,
+        "height": 25,
         "key": {
           "normal": 0
         }
       });
-      this.coor = new Vector(Math.random() * 640, Math.random() * 48);
-      this.speed = new Vector(0.1, 0.1);
+      this.coor = new Vector(0, 0);
+      this.speed = 0.5;
+      this.direction = new Vector(0, 0);
+      this.isAlive = false;
+      this.lifeTime = this.speed * 1000;
+      this.lifeDelay = this.lifeTime;
     }
 
+    Bullet.prototype.shoot = function(startPos, aimDirection) {
+      this.coor = startPos;
+      this.direction = aimDirection;
+      this.lifeDelay = this.lifeTime;
+      return this.revive();
+    };
+
     Bullet.prototype.update = function(delta) {
-      this.coor = this.coor.add(this.speed.mult(delta));
-      if (this.coor.x > 640) {
-        this.speed.x = this.speed.x * -1;
-        this.coor.x = 640;
-        this.eventmanager.trigger("touchdown");
-      }
-      if (this.coor.x < 0) {
-        this.speed.x = this.speed.x * -1;
-        this.coor.x = 0;
-      }
-      if (this.coor.y > 480) {
-        this.speed.y = this.speed.y * -1;
-        this.coor.y = 480;
-      }
-      if (this.coor.y < 0) {
-        this.speed.y = this.speed.y * -1;
-        return this.coor.y = 0;
+      var newDist;
+      if (this.isAlive) {
+        newDist = delta * this.speed;
+        this.coor = this.coor.add(this.direction.mult(newDist));
+        if (this.lifeDelay > 0) this.lifeDelay -= delta;
+        if (this.lifeDelay <= 0) return this.kill();
       }
     };
 
     Bullet.prototype.render = function(ctx) {
-      ctx.save();
-      ctx.translate(this.coor.x, this.coor.y);
-      this.sprite.render(this.state, ctx);
-      return ctx.restore();
+      if (this.isAlive) {
+        ctx.save();
+        ctx.translate(this.coor.x, this.coor.y);
+        this.sprite.render(this.state, ctx);
+        return ctx.restore();
+      }
+    };
+
+    Bullet.prototype.revive = function() {
+      return this.isAlive = true;
+    };
+
+    Bullet.prototype.kill = function() {
+      return this.isAlive = false;
     };
 
     return Bullet;

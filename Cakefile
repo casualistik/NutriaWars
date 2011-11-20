@@ -21,7 +21,7 @@ appFiles = [
   'state_menu'
   'state_play'
   'state_game_over'
-  'nutria'
+  'enemy'
   'hero'
   'custom_background'
   'bullet'
