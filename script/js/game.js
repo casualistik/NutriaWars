@@ -1,5 +1,5 @@
 (function() {
-  var Animation, Background, Bullet, Camera, CustomBackground, Enemy, Eventmanager, Game, Hero, Keyboard, Map, NutriaWars, Shape, Sprite, State, StateGameOver, StateMenu, StatePlay, Statemanager, Tile, Timer, Vector, root, stateclass;
+  var Animation, Background, Bullet, Camera, CustomBackground, Enemy, Eventmanager, Game, Hero, Keyboard, Map, NutriaWars, Shape, Sprite, State, StateGameOver, StateMenu, StatePlay, Statemanager, Stats, Tile, Timer, Vector, root, stateclass;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
 
   root = this;
@@ -178,7 +178,7 @@
       var direction, _i, _len, _ref;
       var _this = this;
       this.keyarray = [];
-      _ref = ['left', 'up', 'right', 'down', 'space'];
+      _ref = ['left', 'up', 'right', 'down', 'space', "x"];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         direction = _ref[_i];
         this.keyarray[direction] = false;
@@ -190,7 +190,8 @@
           38: "up",
           39: "right",
           40: "down",
-          32: "space"
+          32: "space",
+          88: "x"
         };
         return _this.keyarray[directions[event.which]] = true;
       });
@@ -201,7 +202,8 @@
           38: "up",
           39: "right",
           40: "down",
-          32: "space"
+          32: "space",
+          88: "x"
         };
         return _this.keyarray[directions[event.which]] = false;
       });
@@ -250,9 +252,7 @@
       return this.timer.punch();
     };
 
-    Game.prototype.render = function() {
-      return this.ctx.fillText(this.timer.fps().toFixed(1), 20, 20);
-    };
+    Game.prototype.render = function() {};
 
     return Game;
 
@@ -536,13 +536,17 @@
 
     function State() {}
 
-    State.prototype.create = function() {};
-
     State.prototype.update = function() {};
 
     State.prototype.draw = function() {};
 
-    State.prototype.destroy = function() {};
+    State.prototype.create = function() {
+      return console.log("State: create()");
+    };
+
+    State.prototype.destroy = function() {
+      return console.log("State: destroy()");
+    };
 
     return State;
 
@@ -567,7 +571,10 @@
     };
 
     Statemanager.prototype.setState = function(state) {
-      return this.currentState = this.statearray[state];
+      console.log("EventManager setState " + state + " !!!!! ");
+      if (this.currentState) this.currentState.destroy();
+      this.currentState = this.statearray[state];
+      return this.currentState.create();
     };
 
     return Statemanager;
@@ -615,7 +622,7 @@
       this.eventmanager = new Eventmanager;
       this.keyboard = new Keyboard;
       this.stateManager = new Statemanager(this, ["state_menu", "state_play", "state_game_over"]);
-      this.stateManager.setState("state_menu");
+      Stats.getInstance().init();
     }
 
     NutriaWars.prototype.update = function() {
@@ -636,8 +643,7 @@
   $(function() {
     var nutriaWars;
     nutriaWars = new NutriaWars(640, 480);
-    nutriaWars.start();
-    return console.log("Start NutriaWars ");
+    return nutriaWars.start();
   });
 
   stateclass["state_menu"] = StateMenu = (function() {
@@ -647,8 +653,7 @@
     function StateMenu(parent) {
       var i;
       this.parent = parent;
-      console.log("contruct state_menu");
-      console.log("width: " + this.parent.width + " -- height: " + this.parent.height);
+      console.log("StateMenu: constructor()");
       this.camera = new Camera({
         "projection": "normal",
         "vpWidth": this.parent.width,
@@ -658,7 +663,7 @@
       this.enemies = [];
       for (i = 0; i <= 10; i++) {
         this.enemies[i] = new Enemy;
-        this.enemies[i].revive();
+        this.enemies[i].isAlive = true;
       }
       this.background = new CustomBackground("assets/images/bg-menu.png", this.parent.width, this.parent.height);
     }
@@ -670,7 +675,10 @@
         enemy = _ref[_i];
         enemy.update(delta);
       }
-      if (this.parent.keyboard.key("space")) return this.destroy("state_play");
+      if (this.parent.keyboard.key("x")) {
+        console.log("StateMenu: update 'x pressed' " + this.parent.stateManager.currentState);
+        return this.parent.stateManager.setState("state_play");
+      }
     };
 
     StateMenu.prototype.render = function(ctx) {
@@ -686,14 +694,15 @@
       });
     };
 
-    StateMenu.prototype.destroy = function(nextState) {
-      var enemy, _i, _len, _ref;
+    StateMenu.prototype.destroy = function() {
+      var enemy, _i, _len, _ref, _results;
       _ref = this.enemies;
+      _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         enemy = _ref[_i];
-        enemy.kill();
+        _results.push(enemy.kill());
       }
-      return this.parent.stateManager.setState(nextState);
+      return _results;
     };
 
     return StateMenu;
@@ -707,7 +716,7 @@
     function StatePlay(parent) {
       var i, _ref;
       this.parent = parent;
-      console.log("Construct play state");
+      console.log("StatePlay: constructor()");
       this.spawnEnemyTime = 3 * 1000;
       this.spawnEnemyDelay = this.spawnEnemyTime;
       this.maxEnemies = 10;
@@ -730,9 +739,13 @@
       this.hero.coor = new Vector(this.parent.width / 2, this.parent.height / 2);
     }
 
+    StatePlay.prototype.create = function() {
+      console.log("StatePlay create()");
+      return Stats.getInstance().init();
+    };
+
     StatePlay.prototype.spawnEnemy = function() {
       var enemy, _i, _len, _ref, _results;
-      console.log("StatePlay: createEnemy()");
       _ref = this.enemies;
       _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -748,7 +761,7 @@
     };
 
     StatePlay.prototype.update = function(delta) {
-      var bullet, dist, enemy, _i, _j, _len, _len2, _ref, _ref2, _results;
+      var bullet, dist, enemy, _i, _j, _k, _len, _len2, _len3, _ref, _ref2, _ref3;
       this.spawnEnemyDelay -= delta;
       if (this.spawnEnemyDelay <= 0) {
         this.spawnEnemy();
@@ -760,35 +773,33 @@
         enemy = _ref[_i];
         enemy.update(delta);
         dist = this.hero.coor.subtract(enemy.coor).length();
-        if (dist < 50 && enemy.isAlive) {
-          console.log("StatePlay: GAME OVER");
-          this.destroy("state_game_over");
+        if (dist < 30 && enemy.isAlive) {
+          console.log("StatePlay: Enemy hits hero");
+          enemy.isAlive = false;
+          Stats.lives -= 1;
+          if (Stats.lives < 0) {
+            console.log("StatePlay: GAME OVER");
+            this.parent.stateManager.setState("state_game_over");
+          }
         }
       }
       _ref2 = this.bullets;
-      _results = [];
       for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
         bullet = _ref2[_j];
         bullet.update(delta);
-        _results.push((function() {
-          var _k, _len3, _ref3, _results2;
-          _ref3 = this.enemies;
-          _results2 = [];
-          for (_k = 0, _len3 = _ref3.length; _k < _len3; _k++) {
-            enemy = _ref3[_k];
-            dist = bullet.coor.subtract(enemy.coor).length();
-            if (dist < 10 && enemy.isAlive) {
-              console.log("StatePlay: bullet hits enemy");
-              bullet.kill();
-              _results2.push(enemy.kill());
-            } else {
-              _results2.push(void 0);
-            }
+        _ref3 = this.enemies;
+        for (_k = 0, _len3 = _ref3.length; _k < _len3; _k++) {
+          enemy = _ref3[_k];
+          dist = bullet.coor.subtract(enemy.coor).length();
+          if (dist < 25 && enemy.isAlive) {
+            console.log("StatePlay: bullet hits enemy");
+            bullet.kill();
+            enemy.kill();
+            Stats.score++;
           }
-          return _results2;
-        }).call(this));
+        }
       }
-      return _results;
+      return Stats.getInstance().update(delta);
     };
 
     StatePlay.prototype.render = function(ctx) {
@@ -807,23 +818,25 @@
           enemy.render(ctx);
         }
         ctx.fillStyle = '#00ff00';
-        return ctx.fillText('Use arrows to rotate and space to shoot', 20, 460);
+        ctx.fillText('hit left/right to rotate | space to shoot', 20, 460);
+        return ctx.fillText(Stats.toString(), 20, 20);
       });
     };
 
-    StatePlay.prototype.destroy = function(nextState) {
-      var bullet, enemy, _i, _j, _len, _len2, _ref, _ref2;
+    StatePlay.prototype.destroy = function() {
+      var bullet, enemy, _i, _j, _len, _len2, _ref, _ref2, _results;
       _ref = this.enemies;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         enemy = _ref[_i];
         enemy.kill();
       }
       _ref2 = this.bullets;
+      _results = [];
       for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
         bullet = _ref2[_j];
-        bullet.kill();
+        _results.push(bullet.kill());
       }
-      return this.parent.stateManager.setState(nextState);
+      return _results;
     };
 
     return StatePlay;
@@ -837,8 +850,7 @@
     function StateGameOver(parent) {
       var i;
       this.parent = parent;
-      console.log("Construct StateGameOver");
-      console.log("width: " + this.parent.width + " -- height: " + this.parent.height);
+      console.log("StateGameOver: constructor()");
       this.camera = new Camera({
         "projection": "normal",
         "vpWidth": this.parent.width,
@@ -846,7 +858,7 @@
       });
       this.camera.coor = new Vector(0, 0);
       this.enemies = [];
-      for (i = 0; i <= 10; i++) {
+      for (i = 0; i <= 5; i++) {
         this.enemies[i] = new Enemy;
         this.enemies[i].isAlive = true;
       }
@@ -860,7 +872,9 @@
         enemy = _ref[_i];
         enemy.update(delta);
       }
-      if (this.parent.keyboard.key("space")) return this.destroy("state_play");
+      if (this.parent.keyboard.key("x")) {
+        return this.parent.stateManager.setState("state_play");
+      }
     };
 
     StateGameOver.prototype.render = function(ctx) {
@@ -876,14 +890,15 @@
       });
     };
 
-    StateGameOver.prototype.destroy = function(nextState) {
-      var enemy, _i, _len, _ref;
+    StateGameOver.prototype.destroy = function() {
+      var enemy, _i, _len, _ref, _results;
       _ref = this.enemies;
+      _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         enemy = _ref[_i];
-        enemy.kill();
+        _results.push(enemy.kill());
       }
-      return this.parent.stateManager.setState(nextState);
+      return _results;
     };
 
     return StateGameOver;
@@ -898,7 +913,7 @@
       this.state = "normal";
       this.isAlive = false;
       this.sprite = new Sprite({
-        "texture": "assets/images/test.png",
+        "texture": "assets/images/enemy.png",
         "width": 50,
         "height": 50
       });
@@ -906,44 +921,43 @@
       this.sprite.addAnimation("normal", {
         frames: [0],
         fps: 3,
-        loop: true,
-        callback: this.hello
+        loop: false,
+        callback: this.done
       });
       this.sprite.addAnimation("attack", {
-        frames: [0, 1, 2, 3, 4].shuffle(),
+        frames: [0, 1, 2, 3, 4],
         fps: 3,
         loop: true,
-        callback: this.hello
+        callback: this.done
       });
       this.coor = new Vector(Math.random() * 640, Math.random() * 480);
       this.direction = new Vector(1, 1);
       if (Math.random() > 0.5) this.direction = this.direction.mult(-1);
-      this.speed = 0.1;
+      this.minSpeed = 0.1;
+      this.speed = this.minSpeed + Math.random() * 0.2;
     }
 
     Enemy.prototype.attack = function(targetCoor) {
       var rnd;
       this.targetCoor = targetCoor;
-      console.log("Enemy  attack() targetCoor " + this.targetCoor);
       this.state = "attack";
-      this.revive();
-      rnd = Math.random();
+      this.speed = this.minSpeed + Math.random() * 0.2;
+      rnd = Math.random() * 1.1;
       if (rnd <= 0.2) {
-        this.coor.x = 0 - 200;
+        this.coor.x = 0 - this.sprite.width;
         this.coor.y = Math.random() * 480;
       } else if (rnd >= 0.3 && rnd <= 0.5) {
-        this.coor.x = 640 + 200;
+        this.coor.x = 640 + this.sprite.width;
         this.coor.y = Math.random() * 480;
       } else if (rnd >= 0.6 && rnd <= 0.8) {
         this.coor.x = Math.random() * 640;
-        this.coor.y = 0 - 200;
-      } else if (rnd >= 0.9 && rnd <= 1) {
+        this.coor.y = 0 - this.sprite.height;
+      } else if (rnd >= 0.9 && rnd <= 1.1) {
         this.coor.x = Math.random() * 640;
-        this.coor.y = 480 + 200;
+        this.coor.y = 480 + this.sprite.height;
       }
-      console.log("Nutria  attack() random coor " + this.coor.x + " " + this.coor.y);
       this.direction = targetCoor.subtract(this.coor).norm();
-      return console.log("Nutria  attack() new direction " + this.direction.x + " " + this.direction.y);
+      return this.revive();
     };
 
     Enemy.prototype.update = function(delta) {
@@ -982,16 +996,14 @@
       }
     };
 
-    Enemy.prototype.hello = function() {
-      return console.log("hello!");
-    };
+    Enemy.prototype.done = function() {};
 
     Enemy.prototype.revive = function() {
       return this.isAlive = true;
     };
 
     Enemy.prototype.kill = function() {
-      console.log("kill");
+      console.log("Enemy: kill()");
       return this.isAlive = false;
     };
 
@@ -1011,14 +1023,19 @@
         "width": 50,
         "height": 50,
         "key": {
-          "normal": 3,
-          "jumping": 5
+          "normal": 0
         }
       });
+      this.sprite.addAnimation("shoot", {
+        frames: [1, 0, 1, 0],
+        fps: 3,
+        loop: false,
+        callback: this.done
+      });
       this.coor = new Vector(0, 0);
-      this.angleSpeed = 0.2;
+      this.angleSpeed = 0.3;
       this.angle = 0;
-      this.attackTime = 1 * 1000;
+      this.attackTime = 0.4 * 1000;
       this.attackDelay = 0;
     }
 
@@ -1031,7 +1048,8 @@
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         bullet = _ref[_i];
         if (!bullet.isAlive) {
-          bullet.shoot(this.coor, aimDirection);
+          this.state = "shoot";
+          bullet.shoot(this.coor, aimDirection, this.angle);
           break;
         } else {
           _results.push(void 0);
@@ -1040,15 +1058,18 @@
       return _results;
     };
 
+    Hero.prototype.done = function() {
+      var state;
+      return state = "normal";
+    };
+
     Hero.prototype.update = function(delta) {
       if (this.attackDelay > 0) this.attackDelay -= delta;
       if (this.keyboard.key("space") && this.attackDelay <= 0) this.shootBullet();
       if (this.keyboard.key("right")) {
-        this.angle = (this.angle - delta * this.angleSpeed) % 360;
-        return console.log("" + this + " Right Angle:" + this.angle);
+        return this.angle = (this.angle - delta * this.angleSpeed) % 360;
       } else if (this.keyboard.key("left")) {
-        this.angle = (this.angle + delta * this.angleSpeed) % 360;
-        return console.log("" + this + " LEFT Angle:" + this.angle);
+        return this.angle = (this.angle + delta * this.angleSpeed) % 360;
       }
     };
 
@@ -1109,6 +1130,7 @@
         }
       });
       this.coor = new Vector(0, 0);
+      this.angle = 0;
       this.speed = 0.5;
       this.direction = new Vector(0, 0);
       this.isAlive = false;
@@ -1116,9 +1138,10 @@
       this.lifeDelay = this.lifeTime;
     }
 
-    Bullet.prototype.shoot = function(startPos, aimDirection) {
-      this.coor = startPos;
+    Bullet.prototype.shoot = function(startCoor, aimDirection, aimAngle) {
+      this.coor = startCoor;
       this.direction = aimDirection;
+      this.angle = aimAngle;
       this.lifeDelay = this.lifeTime;
       return this.revive();
     };
@@ -1137,6 +1160,7 @@
       if (this.isAlive) {
         ctx.save();
         ctx.translate(this.coor.x, this.coor.y);
+        ctx.rotate(this.angle * Math.PI / 180);
         this.sprite.render(this.state, ctx);
         return ctx.restore();
       }
@@ -1151,6 +1175,54 @@
     };
 
     return Bullet;
+
+  })();
+
+  Stats = (function() {
+    var instance;
+
+    instance = null;
+
+    Stats.getInstance = function() {
+      if (!(instance != null)) instance = new this;
+      return instance;
+    };
+
+    Stats.score = 0;
+
+    Stats.time = 0;
+
+    Stats.maxLives = 5;
+
+    Stats.lives = 0;
+
+    Stats.toString = function() {
+      var str;
+      str = ' lives: ' + Stats.lives;
+      str += ' | ';
+      str += ' score: ' + Stats.score;
+      str += ' | ';
+      str += 'time: ' + Math.floor(Stats.time / 1000);
+      return str;
+    };
+
+    function Stats() {
+      console.log("Stats constructor()");
+      this.coor = new Vector(0, 0);
+    }
+
+    Stats.prototype.init = function() {
+      console.log("Stats: Singelton initialized. Static Attributes will be reseted!");
+      Stats.score = 0;
+      Stats.time = 0;
+      return Stats.lives = Stats.maxLives;
+    };
+
+    Stats.prototype.update = function(delta) {
+      return Stats.time += delta;
+    };
+
+    return Stats;
 
   })();
 

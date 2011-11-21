@@ -12,7 +12,8 @@ class NutriaWars extends Game
     @keyboard = new Keyboard
     
     @stateManager = new Statemanager this, ["state_menu", "state_play", "state_game_over"] # Add your own Gamestates or Levels
-    @stateManager.setState "state_menu" 
+    
+    Stats.getInstance().init()
     
     
   update: ->
@@ -28,6 +29,5 @@ class NutriaWars extends Game
 $ ->
   nutriaWars = new NutriaWars( 640, 480 )
   nutriaWars.start()
-  console.log "Start NutriaWars "
 
   

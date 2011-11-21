@@ -9,24 +9,29 @@ class Hero
       "width": 50
       "height": 50
       "key":
-        "normal": 3
-        "jumping": 5
+        "normal": 0
+        
+    @sprite.addAnimation "shoot", { frames: [1,0,1,0], fps: 3, loop: false, callback: @done }      
     
     @coor = new Vector( 0, 0 )
-    @angleSpeed = 0.2
+    @angleSpeed = 0.3
     @angle = 0
     
-    @attackTime = 1*1000
+    @attackTime = 0.4*1000
     @attackDelay = 0
-
+    
   shootBullet: ->
     @attackDelay = @attackTime
     aimDirection = new Vector(Math.cos(@angle * Math.PI / 180), Math.sin(@angle * Math.PI / 180));
     for bullet in @bullets
      if !bullet.isAlive
-       bullet.shoot(@coor, aimDirection)
+       @state = "shoot"
+       bullet.shoot(@coor, aimDirection, @angle)
        break
 
+  done: ->
+    state = "normal"
+    
   update: (delta) ->
     # Delay to prevent hold on fire
     if @attackDelay > 0
@@ -37,10 +42,8 @@ class Hero
     # left/right movement
     if @keyboard.key("right")
       @angle = (@angle-delta*@angleSpeed)%360
-      console.log "#{this} Right Angle:#{@angle}"
     else if @keyboard.key("left")
       @angle = (@angle+delta*@angleSpeed)%360
-      console.log "#{this} LEFT Angle:#{@angle}"
 
   render: (ctx) ->
     ctx.save()
@@ -48,6 +51,4 @@ class Hero
     ctx.rotate @angle * Math.PI / 180
     @sprite.render( @state, ctx )
     ctx.restore()
-
-
-
+  
