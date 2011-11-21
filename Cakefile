@@ -17,14 +17,15 @@ libFiles  = [
 ]
 
 appFiles = [
-  'nutria_wars'
-  'state_menu'
-  'state_play'
-  'state_game_over'
-  'nutria'
-  'hero'
-  'custom_background'
-  'bullet'
+  'nutria_wars/nutria_wars'
+  'nutria_wars/state_menu'
+  'nutria_wars/state_play'
+  'nutria_wars/state_game_over'
+  'nutria_wars/enemy'
+  'nutria_wars/hero'
+  'nutria_wars/custom_background'
+  'nutria_wars/bullet'
+  'nutria_wars/stats'
 ]
 
 task 'build:coffee', 'Build single application file from source files', ->

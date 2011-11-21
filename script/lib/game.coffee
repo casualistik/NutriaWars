@@ -23,4 +23,4 @@ class Game
     @timer.punch()
 
   render: ->
-    @ctx.fillText( @timer.fps().toFixed(1), 20, 20 )
+#    @ctx.fillText( @timer.fps().toFixed(1), 20, 460 )
